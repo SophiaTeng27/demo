@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>科大讯飞供应链 · 流程与业务对象、实体映射 V4</title>
+<style>
+  :root {
+    --ink: #0b1f33; --ink-2: #1a334d; --muted: #5b6b7c; --line: #c9d4e0;
+    --paper: #f3f6f9; --brand: #0e4d7b; --brand-2: #1a6fa8; --optional: #6b7c8f;
+    --ok: #1e7a3a; --gov: #a36b00; --miss: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); overflow: hidden;
+    font-family: "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif; }
+  .page { display: flex; flex-direction: column; gap: 4px; height: 100vh; padding: 6px 8px; min-width: 0; overflow: hidden; }
+  .sticky-top { position: static; z-index: 15; display: flex; flex-direction: column; gap: 4px;
+    padding-top: 0; background: var(--paper); flex: none; }
+  .phase-head[hidden] { display: none; }
+  #tabFlow:not([hidden]) { margin-top: 0; min-width: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #tabMd:not([hidden]) { flex: 1; min-height: 0; overflow: auto; }
+  .tabs { display: flex; gap: 6px; }
+  .tab { border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+    border-radius: 8px 8px 0 0; padding: 4px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .tab.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .tab-panel[hidden] { display: none; }
+  header.hero { display: flex; justify-content: space-between; gap: 8px 16px; align-items: center; flex-wrap: wrap;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+  h1 { margin: 0; font-size: 16px; line-height: 1.2; white-space: nowrap; }
+  .lead { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.35; flex: 1 1 420px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--line); }
+  .sw.ok { background: #e7f6ec; border-color: #1e7a3a; }
+  .sw.gov { background: #fff6df; border-color: #a36b00; }
+  .sw.miss { background: #fdecea; border-color: #c0392b; }
+  .board-wrap { overflow: auto; min-width: 0; min-height: 0; flex: 1; border: 1px solid var(--line); border-top: none;
+    border-radius: 0 0 8px 8px; background: #fff; }
+  .phase-head, .board { display: grid; grid-template-columns: 52px repeat(9, minmax(0, 1fr)); min-width: 0; width: 100%; }
+  .phase-head { grid-template-rows: 16px auto; border: 1px solid var(--line); border-bottom: none;
+    border-radius: 8px 8px 0 0; background: #fff; overflow: hidden; flex: none; }
+  .board { grid-template-rows: repeat(15, auto); }
+  .domain-corner { grid-column: 1; grid-row: 1; background: #0b1f33; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .domain-banner { grid-row: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; letter-spacing: .04em; margin: 2px 2px 0; border-radius: 6px; }
+  .domain-banner.src { grid-column: 2 / span 2; color: #9a3d00; background: #fff3e0; box-shadow: inset 0 0 0 2px #e67e22; }
+  .domain-banner.sc { grid-column: 4 / span 7; color: #0d47a1; background: #e3f2fd; box-shadow: inset 0 0 0 2px #1a6fa8; }
+  .corner { grid-column: 1; grid-row: 2; background: #0b1f33; color: #fff; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700; text-align: center; line-height: 1.25;
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .phase { min-width: 0; color: #fff; padding: 2px 3px 3px; background: linear-gradient(180deg, #123a5c, #0e4d7b);
+    border-right: 1px solid rgba(255,255,255,.25); border-bottom: 1px solid var(--line); }
+  .phase.src-phase { background: linear-gradient(180deg, #c45c00, #e67e22); }
+  .phase.optional-phase { background: repeating-linear-gradient(-45deg, #f7f9fb, #f7f9fb 8px, #eef2f6 8px, #eef2f6 16px);
+    color: var(--ink-2); outline: 1.5px dashed var(--optional); outline-offset: -3px; }
+  .phase .num { font-size: 10px; opacity: .9; font-weight: 700; }
+  .phase .title { font-size: 11px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+  .phase .opt-tag { display: inline; margin-left: 3px; font-size: 10px; font-weight: 700; color: var(--optional); }
+  .lane { background: #eef3f8; min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 1px; }
+  .lane strong { font-size: 11px; line-height: 1.15; overflow-wrap: anywhere; }
+  .cell { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    background: #fff; padding: 0; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+  .cell.empty { background: repeating-linear-gradient(-45deg, #fafbfc, #fafbfc 6px, #f4f7fa 6px, #f4f7fa 12px); }
+  .cell.optional-col { background: repeating-linear-gradient(-45deg, #fbfcfd, #fbfcfd 6px, #f3f5f8 6px, #f3f5f8 12px); }
+  .cell.src-col { background: #fffaf3; }
+  .cell.optional-col.src-col { background: #fffaf3; }
+  .ent { position: relative; display: block; width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit;
+    border-radius: 3px; padding: 1px 4px 1px 5px; min-width: 0; border: 1px solid #d5dde6; }
+  .ent:hover, .ent.on { box-shadow: 0 2px 8px rgba(14,77,123,.16); }
+  .ent.sat-ok { background: #e7f6ec; border-color: #8fceaa; border-left: 4px solid var(--ok); }
+  .ent.sat-gov { background: #fff6df; border-color: #e6c36a; border-left: 4px solid var(--gov); }
+  .ent.sat-miss { background: #fdecea; border-color: #f0b4ae; border-left: 4px solid var(--miss); }
+  .ent-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: nowrap; min-width: 0; }
+  .ent-top b { font-size: 12px; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .pill.sat-ok { color: #145c32; background: #c8ecd4; }
+  .pill.sat-gov { color: #7a4e00; background: #ffe3a3; }
+  .pill.sat-miss { color: #922b21; background: #f5c6c0; }
+  .md { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; }
+  .md h2 { margin: 0 0 4px; font-size: 15px; }
+  .md .hint { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .md-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+  .md-group { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #f7fbff; }
+  .md-group h3 { margin: 0 0 6px; font-size: 13px; color: var(--brand); }
+  .md-cards { display: flex; flex-direction: column; gap: 6px; }
+  #tabMd .ent { padding: 6px 8px 2px; }
+  #tabMd .ent-top { margin-bottom: 0; }
+  #tabMd .ent-top b { font-size: 13px; white-space: normal; overflow: visible; text-overflow: clip; }
+  #tabMd .pill { position: static; width: auto; height: auto; margin: 0; padding: 0 6px; overflow: visible;
+    clip: auto; font-style: normal; font-size: 11px; font-weight: 800; border-radius: 8px; flex: none; }
+  #tabMd .core { display: flex; flex-direction: column; margin-top: 4px; border-top: 1px dashed #d5e0ea; }
+  #tabMd .core-row { display: grid; grid-template-columns: 40px 1fr; gap: 6px; padding: 2px 0;
+    font-size: 12px; line-height: 1.35; }
+  #tabMd .core-row em { font-style: normal; font-weight: 700; color: var(--brand); }
+  #tabMd .core-row span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .place-note { margin: 2px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.35; flex: none; }
+  .drawer { position: fixed; right: 12px; bottom: 12px; width: min(520px, calc(100vw - 24px));
+    max-height: 70vh; overflow: auto; background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 10px 30px rgba(11,31,51,.12); padding: 10px 12px 12px; display: none; z-index: 40; }
+  .drawer.show { display: block; }
+  .drawer h3 { margin: 0 36px 4px 0; font-size: 16px; }
+  .drawer .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; line-height: 1.45; }
+  .drawer .meta { margin: 0 0 8px; font-size: 12.5px; line-height: 1.55; white-space: pre-line; }
+  .drawer .x { position: absolute; right: 8px; top: 8px; border: 0; background: transparent; font-size: 18px; cursor: pointer; color: var(--muted); }
+  .drawer .attrs { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .drawer .ag { display: grid; grid-template-columns: 118px 1fr; gap: 6px; padding: 4px 0; border-bottom: 1px dashed #e3e9ef; font-size: 12.5px; line-height: 1.5; }
+  .drawer .ag .k { color: var(--brand); font-weight: 700; }
+  .ver { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 800; color: #fff; background: #c45c26; border-radius: 4px; padding: 1px 6px; vertical-align: 2px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="sticky-top">
+  <header class="hero">
+    <div>
+      <h1>流程与业务对象、实体映射<span class="ver">V4</span></h1>
+      <p class="lead">卡片只显示实体名，点开查看标识、属性和当前问题。颜色表示数据是否满足。质量实体挂在到货、制造、发货列，主数据在第二页。</p>
+    </div>
+    <div class="legend">
+      <span class="chip"><i class="sw ok"></i>已满足</span>
+      <span class="chip"><i class="sw gov"></i>待治理</span>
+      <span class="chip"><i class="sw miss"></i>待采集</span>
+    </div>
+  </header>
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab on" id="tabBtnFlow" role="tab" aria-selected="true">流程与业务对象、实体映射</button>
+    <button type="button" class="tab" id="tabBtnMd" role="tab" aria-selected="false">主数据 · 贯穿引用，不占 P01–P09 的某一步</button>
+  </div>
+  <div class="phase-head" id="phaseHead">
+      <div class="domain-corner">大域</div>
+      <div class="domain-banner src">采购寻源</div>
+      <div class="domain-banner sc">供应链</div>
+      <div class="corner">对象<br>阶段</div>
+      <div class="phase phase-rail src-phase" data-col="1" style="grid-column:2;grid-row:2"><div class="num">P01</div><div class="title">寻源需求</div></div>
+      <div class="phase phase-rail src-phase" data-col="2" style="grid-column:3;grid-row:2"><div class="num">P02</div><div class="title">寻源定价</div></div>
+      <div class="phase phase-rail" data-col="3" style="grid-column:4;grid-row:2"><div class="num">P03</div><div class="title">采购需求</div></div>
+      <div class="phase phase-rail" data-col="4" style="grid-column:5;grid-row:2"><div class="num">P04</div><div class="title">计划</div></div>
+      <div class="phase phase-rail" data-col="5" style="grid-column:6;grid-row:2"><div class="num">P05</div><div class="title">合同订单</div></div>
+      <div class="phase phase-rail" data-col="6" style="grid-column:7;grid-row:2"><div class="num">P06</div><div class="title">到货验收</div></div>
+      <div class="phase phase-rail optional-phase" data-col="7" style="grid-column:8;grid-row:2"><div class="num">P07</div><div class="title">生产制造<span class="opt-tag">可选</span></div></div>
+      <div class="phase phase-rail optional-phase" data-col="8" style="grid-column:9;grid-row:2"><div class="num">P08</div><div class="title">履约发货<span class="opt-tag">可选</span></div></div>
+      <div class="phase phase-rail" data-col="9" style="grid-column:10;grid-row:2"><div class="num">P09</div><div class="title">对账付款</div></div>
+  </div>
+  </div>
+  <div id="tabFlow" class="tab-panel">
+  <div class="board-wrap" id="boardWrap">
+    <div class="board" id="board">
+      <div class="lane"><strong>寻源需求</strong></div><div class="cell src-col" data-col="1"><button type="button" class="ent sat-miss" data-node="P01 寻源需求" data-obj="寻源需求" data-name="寻源需求" data-sat="待采集" data-state="系统与线下并存" data-issue="硬件、工程的寻源需求均在线下。自用的线上。" data-owner="朱清" data-admin="纵晨晨" data-source="SCM\POMP\邮件" data-level="L3" data-pri="P2" data-attrs="【标识】头:需求单号（CGSQ-…）；行:行号
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；履约模式（C端 / 渠道 / 项目，硬件分型下选用）；行类型；一至三级品类
+【关联】头:项目编码（工程必填，硬件/自用可选）；利润中心编码；成本中心代码（自用费用类）；行:标的引用（已转正=物料编码或服务项；临时标的可空但须可转正）；建议供应商编码（可选，非正式定点）
+【参与方】头:申请组织、一级组织、归属公司、申请人；工程扩展:项目所属公司、项目经理
+【度量】行:数量、计量单位、预估单价、预估价税合计
+【要求】行:需求描述；规格型号、品牌、参数、质保年限要求（年）
+【时间】头:申请日期；行:需求日期（物料=要求到货日期；服务=进场日期）
+【状态】头:单据状态（草稿 → 待评审 → 已确认 → 已转寻源 / 已关闭）；行:行关闭状态
+【分型扩展-硬件】产品线、业务类别；器件类技术要求（电气/机械/可靠性/有害物质，如有）
+【分型扩展-工程】完工日期、工期（天）；劳务类别；WBS/网络/网络行（项目物资）；服务类子目随需求行保存
+【分型扩展-自用】物资大类、领用用途、要求采购完成日期"><span class="ent-top"><b>寻源需求</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>寻源任务</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell src-col" data-col="2"><button type="button" class="ent sat-gov" data-node="P02 寻源定价" data-obj="寻源任务" data-name="招标寻源任务" data-sat="待治理" data-state="系统数据" data-issue="基准价、降本规则未承载;
+" data-owner="朱清" data-admin="黄山" data-source="SCM（招标列表）；OA/SCM" data-level="L3" data-pri="P1" data-attrs="【标识】头:寻源项目编号（SRC…）、寻源项目名称；来源单号（可空）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；寻源方式；寻源方式类型；管理方式（按项目 / 按标段）
+【关联】头:项目立项编号（工程必填）；寻源需求单号（CGSQ…）；行:标的编码（物料 / 服务项 / 临时标的）；一至三级品类编码
+【参与方】采购组织、创建人、受邀供应商
+【度量】行:标的数量、计量单位、价格单位、标杆价格（未税）、基准单价（未税）
+【规则】推荐方案、决标方式、价格录入方式；降本规则、付款条件、交货方式与交货地址（有则填）
+【时间】创建时间、报价截止时间、价格有效起止；采购周期、质保期（年）（有则填）
+【状态】单据状态、开标状态、业务状态、邀请函状态
+【边界】推荐方案是本事件的决标规则，不是授标结果；报价与中标行不写入本单识别键
+【本行方式】寻源方式=招标
+【方式扩展-招标】招标方式（邀请招标等）；寻源流程（讯飞招标流程有/无资审、邀请招标流程、邀请招标流程（资审协同））；当前节点（资质审查、开技术标、开标与评标、定标）；推荐方案常用：综合得分高(标的未税单价)"><span class="ent-top"><b>招标寻源任务</b><i class="pill sat-gov">待治理</i></span></button><button type="button" class="ent sat-miss" data-node="P02 寻源定价" data-obj="寻源任务" data-name="询比价寻源任务" data-sat="待采集" data-state="系统与线下并存" data-issue="硬件寻源任务在线下" data-owner="朱清" data-admin="黄山" data-source="SCM（询比价列表）；SCM" data-level="L3" data-pri="P0" data-attrs="【标识】头:寻源项目编号（SRC…）、寻源项目名称；来源单号（可空）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；寻源方式；寻源方式类型；管理方式（按项目 / 按标段）
+【关联】头:项目立项编号（工程必填）；寻源需求单号（CGSQ…）；行:标的编码（物料 / 服务项 / 临时标的）；一至三级品类编码
+【参与方】采购组织、创建人、受邀供应商
+【度量】行:标的数量、计量单位、价格单位、标杆价格（未税）、基准单价（未税）
+【规则】推荐方案、决标方式、价格录入方式；降本规则、付款条件、交货方式与交货地址（有则填）
+【时间】创建时间、报价截止时间、价格有效起止；采购周期、质保期（年）（有则填）
+【状态】单据状态、开标状态、业务状态、邀请函状态
+【边界】推荐方案是本事件的决标规则，不是授标结果；报价与中标行不写入本单识别键
+【本行方式】寻源方式=询比价
+【方式扩展-询比价】寻源流程（通用流程（标准物资采购）、通用流程（含技术标商务标））；当前节点（发邀请函、开标准备/投标、开技术标、开标与评标、预定标、发结果通知、已完成）；推荐方案常用：标的未税单价低者中标"><span class="ent-top"><b>询比价寻源任务</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-ok" data-node="P02 寻源定价" data-obj="寻源任务" data-name="竞价寻源任务" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="朱清" data-admin="黄山" data-source="SCM" data-level="L3" data-pri="" data-attrs="【标识】头:寻源项目编号（SRC…）、寻源项目名称；来源单号（可空）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；寻源方式；寻源方式类型；管理方式（按项目 / 按标段）
+【关联】头:项目立项编号（工程必填）；寻源需求单号（CGSQ…）；行:标的编码（物料 / 服务项 / 临时标的）；一至三级品类编码
+【参与方】采购组织、创建人、受邀供应商
+【度量】行:标的数量、计量单位、价格单位、标杆价格（未税）、基准单价（未税）
+【规则】推荐方案、决标方式、价格录入方式；降本规则、付款条件、交货方式与交货地址（有则填）
+【时间】创建时间、报价截止时间、价格有效起止；采购周期、质保期（年）（有则填）
+【状态】单据状态、开标状态、业务状态、邀请函状态
+【边界】推荐方案是本事件的决标规则，不是授标结果；报价与中标行不写入本单识别键
+【本行方式】寻源方式=电子竞价
+【方式扩展-电子竞价】寻源流程（XF竞价流程（无技术标）、竞价资质审查流程）；当前节点（资质审查、竞价准备、已完成、已终止）；推荐方案常用：标的名称的平均值(最低值排名)"><span class="ent-top"><b>竞价寻源任务</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-gov" data-node="P02 寻源定价" data-obj="寻源任务" data-name="工程询价寻源任务" data-sat="待治理" data-state="系统数据" data-issue="询价的任务清单、报价清单，以附件方式承载，未结构化" data-owner="卢红利" data-admin="宋身正" data-source="SCM\POMP" data-level="L3" data-pri="P2" data-attrs="【标识】头:寻源项目编号（SRC…）、寻源项目名称；来源单号（可空）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；寻源方式；寻源方式类型；管理方式（按项目 / 按标段）
+【关联】头:项目立项编号（工程必填）；寻源需求单号（CGSQ…）；行:标的编码（物料 / 服务项 / 临时标的）；一至三级品类编码
+【参与方】采购组织、创建人、受邀供应商
+【度量】行:标的数量、计量单位、价格单位、标杆价格（未税）、基准单价（未税）
+【规则】推荐方案、决标方式、价格录入方式；降本规则、付款条件、交货方式与交货地址（有则填）
+【时间】创建时间、报价截止时间、价格有效起止；采购周期、质保期（年）（有则填）
+【状态】单据状态、开标状态、业务状态、邀请函状态
+【边界】推荐方案是本事件的决标规则，不是授标结果；报价与中标行不写入本单识别键
+【本行方式】寻源方式=工程询价（寻源方式，不等于需求分型=工程）
+【方式扩展-工程询价】采购类型、是否单一来源、是否技术评分、是否拆标；引用品类布局；本单受邀的布局内供应商、布局外供应商；寻源流程=通用流程（工程项目）；当前节点（定标、已完成）；推荐方案常用：标的本币价税合计低者中标"><span class="ent-top"><b>工程询价寻源任务</b><i class="pill sat-gov">待治理</i></span></button></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>价格</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell src-col" data-col="2"><button type="button" class="ent sat-ok" data-node="P02 寻源定价" data-obj="价格" data-name="价格报批单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="朱清" data-admin="黄山" data-source="SCM" data-level="L3" data-pri="" data-attrs="【标识】头:价格报批单号（系统中常与 SRC 寻源项目编号同号，资产口径用报批单号）；寻源项目名称；来源单号（可空）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；寻源方式=价格报批；寻源流程（硬件价格报批 / 工程项目价格报批 / 办公基建价格报批）；信息记录类型、核价方式；管理方式（按项目）
+【关联】授标单号（中标结论；无线上寻源的快速采购可空）；寻源项目编号只说明来源事件，不能代替中标结果；供应商编码；标的编码；一至三级品类；项目编码（工程必填）
+【参与方】采购组织、创建人
+【度量】基准单价（未税）、阶梯单价（未税）、税码、价格单位、账期天数、报批价格谈判体量
+【规则】降本类型、价格录入方式
+【时间】创建时间、价格有效起始日、价格有效截止日、归档时间
+【状态】单据状态（草稿 → 审批中 → 已批准 → 已驳回）；业务状态
+【分型扩展-硬件】物料编码原则上必填；临时标的须标明待转正；阶梯价
+【分型扩展-工程】标前/预算单价、目标成本、项目来源
+【分型扩展-自用】办公/基建：采购数量、货币、未税单价"><span class="ent-top"><b>价格报批单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-gov" data-node="P02 寻源定价" data-obj="价格" data-name="价格库" data-sat="待治理" data-state="系统数据" data-issue="1 部分业务在合同签署前可能还存在再次议价的情况，导致价格调整未回写至价格库。 
+2 由于来源多样、操作人员不同且缺乏统一标准，产品描述（如“笔记本”、“工作站”、“lab电脑”）、型号配置等写法不统一。
+3 价格库无法承载质保期、区域限制等详细业务信息，导致部分价格虽有记录但因缺乏背景信息而无法复用。
+4 目前价格库中的价格主要基于内部寻源或报批沉淀，缺乏与市场主流价格的对比机制。" data-owner="朱清" data-admin="黄山" data-source="SCM" data-level="L3" data-pri="P1" data-attrs="【标识】已转正:供应商编码 + 标的编码 + 采购组织 + 信息记录类型 + 价格有效起始日；临时标的:供应商编码 + 三级品类 + 规格/品牌约束 + 采购组织 + 信息记录类型 + 价格有效起始日（须绑定转正规则，未转正不得被订单引用入库）
+【分类】需求分型（可追溯来源，不进识别键）；寻源方式（电子竞价 / 招标 / 询比价 / 价格报批 / 工程询价）；品类（一至三级）；信息记录类型；数据来源；是否集采价格
+【关联】供应商编码；标的编码（物料/服务项）；寻源项目编号；价格报批单号；采购组织
+【参与方】采购组织、申请人、申请部门
+【度量】未税单价、含税单价、税率(%)、币别、价格单位、采购单位、定标数量、份额(%)、阶梯单价、基准单价（未税）
+【规则】降本类型、降本规则、是否为集采价格
+【约束扩展】质保期、区域/布局限制、交货方式（现价库缺口；作属性，不进识别键）
+【时间】定标日期、价格有效起始日、价格有效截止日、申请日期
+【状态】生效 / 失效
+【移出识别键】规格参数、采购品牌、采购单位、币别——单位/币别是度量，品牌/规格是描述；进键会导致同物多码、无法复用"><span class="ent-top"><b>价格库</b><i class="pill sat-gov">待治理</i></span></button></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>采购需求</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell" data-col="3"><button type="button" class="ent sat-miss" data-node="P03 采购需求" data-obj="采购需求" data-name="采购需求" data-sat="待采集" data-state="线下与线上并存" data-issue="劳务施工(非教育方向)、紧急采购，在线下；
+劳务工程量清单没有系统性数据的留存、追踪、复盘" data-owner="朱清" data-admin="纵晨晨" data-source="SCM\POMP\邮件\OA" data-level="L3" data-pri="P1" data-attrs="【标识】头:需求单号（CGSQ-…，与寻源需求共用识别键）；行:行号
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；业务场景（展示用，不作分型主键）；行类型；一至三级品类
+【关联】头:寻源项目编号（来自寻源时）；项目编码（工程必填）；利润中心编码；成本中心代码（自用）；行:标的引用（物料编码 / 服务项）；建议供应商；SAP 采购申请编号（转 PR 后回写）；服务类子目随需求行保存
+【参与方】申请组织、一级组织、归属公司、申请人、采购组/采购员；工程:项目所属公司、项目经理
+【度量】行:需求数量、计量单位、单价、含税单价、税率、金额、价税合计（价税合计由数量与单价派生，可存不可另作识别键）
+【要求】需求描述、质保年限要求（年）、参数、品牌、规格型号
+【时间】申请日期；需求日期（物料=要求到货日期；服务=进场日期）
+【状态】单据状态（已确认 → 已转申请 → 已关闭）；行关闭状态、行终止状态
+【分型扩展-硬件】产品线、业务类别
+【分型扩展-工程】完工日期、工期（天）；WBS/网络/网络行；服务范围以服务子目为准
+【分型扩展-自用】物资大类、领用用途、要求采购完成日期
+【与寻源需求】同一需求单号；本实体回答「买多少、何时要、能否转 PR」，不回答「找谁询价」"><span class="ent-top"><b>采购需求</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>计划</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell" data-col="4"><button type="button" class="ent sat-miss" data-node="P04 计划" data-obj="计划" data-name="需求预测" data-sat="待采集" data-state="系统与线下并存" data-issue="滚动需求预测在线下；上游缺少计算预测的因子（如历史合同量、销量）" data-owner="王斌" data-admin="凌智程" data-source="线下表格；" data-level="L3" data-pri="P2" data-attrs="【标识】预测版本号 + 工厂 + 物料编码 + 期间
+【分类】履约模式（C端 / 渠道，硬件主路径）；需求时段（周、月）；预测来源（客户、渠道、市场、历史外推）
+【关联】物料编码；工厂
+【度量】预测数量、计量单位
+【时间】需求日期、版本发布日期
+【状态】编制 → 已发布 → 已作废（未发布不得进 MRP）
+【分型适用】硬件（含C端/渠道备货）为主路径；工程不走滚动预测，走项目采购需求；自用一般不进预测版本
+【分析扩展】预测因子（历史合同量、销量、渠道提报）——现为缺口，不作识别键"><span class="ent-top"><b>需求预测</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-miss" data-node="P04 计划" data-obj="计划" data-name="采购计划" data-sat="待采集" data-state="线下数据" data-issue="汽车类在线上，消费类在线下" data-owner="王斌" data-admin="凌智程" data-source="线下与线上（SAP)并存" data-level="L3" data-pri="P0" data-attrs="【标识】采购计划版本号 + 计划对象键 + 期间。硬件:工厂+物料编码；工程:项目编码+标的；自用通常无独立计划版本
+【分类】需求分型（硬件 / 工程 / 自用）；业务线、一级组织
+【关联】预测版本号（硬件滚动路径）；物料编码或产品编码；工厂；项目编码（工程必填）
+【度量】物料需求数量、分摊库存数；各月台数（硬件）
+【时间】计划期间、预计交付时间
+【状态】编制 → 已发布 → 已关闭
+【分型扩展-硬件】工厂+物料+期间；消费电子当前线下、汽车类线上
+【分型扩展-工程】按项目+物资/服务包排期，不是 MRP 版本
+【分型扩展-自用】一般由需求直转 PR，不强制本实体
+【分析字段】报批价、基准未税价格、各月采购额、预计采购额、预计基准价降本——可挂计划做测算，权威分别在价格库与降本台账，不进本实体核心度量"><span class="ent-top"><b>采购计划</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-ok" data-node="P04 计划" data-obj="计划" data-name="采购申请" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="王斌" data-admin="汪学文" data-source="SAP/SCM" data-level="L3" data-pri="P1" data-attrs="【标识】采购申请号（SAP 采购申请编号）+ 行号
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；申请类型、行类型、物料组
+【关联】采购需求单号；物料编码或服务子目；指定供应商编码；项目编码或 WBS（工程必填）；成本中心（自用）
+【参与方】采购组、申请人、工厂（物料入厂时）
+【度量】申请数量、计量单位、预计单价、预计金额
+【时间】申请日期、需求日期（物料=到货；服务=进场）
+【状态】行项目状态：已创建 → 已审批 → 已转订单 → 已关闭"><span class="ent-top"><b>采购申请</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-miss" data-node="P04 计划" data-obj="计划" data-name="生产计划" data-sat="待采集" data-state="线下数据" data-issue="" data-owner="王斌" data-admin="许浩" data-source="线下表格" data-level="L3" data-pri="P1" data-attrs="【标识】生产计划版本号 + 工厂 + 物料编码（产成品）
+【分类】计划优先级、来源单据类型（销售订单、预测）；制造模式（自制 / 委外）
+【关联】预测版本号；物料编码；工厂；BOM 版本；来源单据号
+【度量】生产计划数量、计量单位
+【时间】计划开工日期、计划完工日期、要求交货日期
+【状态】编制 → 已发布 → 已关闭
+【分型适用】仅硬件制造/代工；工程服务、自用直采不经本实体
+【路径扩展-委外】委外加工商；投放前齐套结果"><span class="ent-top"><b>生产计划</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>合同</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell" data-col="5"><button type="button" class="ent sat-gov" data-node="P05 合同订单" data-obj="合同" data-name="采购合同" data-sat="待治理" data-state="系统与线下并存" data-issue="【合同基本信息】数据获取多依赖人为手工录入线上系统
+【合同产品明细】当前采购清单并非一物一码，合同环节无法沉淀清晰的结构化数据
+【合同付款、交付、质量】合同上下游数据分散在多个系统" data-owner="朱清" data-admin="过依敏" data-source="OA" data-level="L4" data-pri="P0" data-attrs="【标识】合同编号、版本号、子版本号
+【分类】需求分型（硬件 / 工程 / 自用）；单据类型（标准采购合同等）；合同种类、合同类型、合同属性（框架协议 / 合同）；业务模式（统谈统签 / 统谈分签 / 分谈分签）；适用组织范围
+【关联】合同主体（甲方）；乙方；订货/供货/结算/收款供应商编码；合同模板+模板版本；来源合同编号；价格报批单号；项目编码（工程必填）
+【参与方】采购组织、采购部门、采购组、采购员、甲方联系人、乙方联系人
+【度量】合同金额、税额、价税合计、结算币、汇率
+【条款】付款条件、结算方式、发票类别、是否预付、允许超额付款、是否电子签章；付款计划（款项名称、付款比例、计划付款金额）；交付/验收/质保条款须结构化（避免只在附件）
+【时间】签订日期、起始日期、截止日期、生效时间
+【状态】单据状态、生效状态、变更状态、关闭状态、冻结状态、终止状态、作废状态、签章状态、归档状态、确认状态
+【分型扩展-硬件】产品明细可挂物料编码（一物一码）
+【分型扩展-工程】项目编码/WBS 必填；服务范围以服务子目描述
+【分型扩展-自用】费用/资产类标识、领用组织
+【单号注意】框架协议与落地合同是两份合同，用来源合同编号关联，不合成一个编号"><span class="ent-top"><b>采购合同</b><i class="pill sat-gov">待治理</i></span></button></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>订单</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell" data-col="5"><button type="button" class="ent sat-gov" data-node="P05 合同订单" data-obj="订单" data-name="采购订单" data-sat="待治理" data-state="系统数据" data-issue="SAP中存在大量的无效采购订单和采购申请，包括履约周期长，是否需继续交付、预计何时交付均不清晰，依赖人工线下盘点跟踪和定期清理。" data-owner="王斌；卢红利；杨强云" data-admin="汪学文；张雨；孙雷" data-source="SAP\SCM" data-level="L3" data-pri="P0" data-attrs="【标识】头:单据编号。CGDD 与 SAP PO 在证实为同一编号空间之前分列：SCM单号、SAP PO号，不得把两个值写成一个键；行:行号（SAP 订单行号）
+【分类】需求分型（硬件 / 工程 / 自用）；标的形态（物料 / 服务 / 临时标的）；单据类型（标准采购订单 / 非标采购订单 / 产品委外订单）；行类型、费用类型、采购业务模块
+【关联】订货/供货/结算/收款供应商编码；标的（物料编码或服务子目）；框架合同编号；采购合同编号+合同行号；SAP 采购申请编号；价格库键（报批单号只作价格来源追溯）；来源单据编号；项目编码（工程必填）；WBS、网络、网络行
+【参与方】采购组织、采购部门、采购组、采购员、需求人、归属公司、利润中心、成本中心、业务单元、项目经理
+【度量】数量、计量单位、单价、含税单价、税率、金额、税额、价税合计、本位币、结算币、汇率
+【条款】付款方式、付款条件、结算方式、账期、发票类别、允许超额付款、质保；付款计划（款项名称、付款比例、是否预付）
+【时间】订单日期；交货日期（物料=到货日期；服务=进场日期）；工期（天，服务类）
+【状态】单据状态、协同状态、行关闭状态、行终止状态、变更状态、确认状态
+【分型扩展-硬件】工厂/库存地点、供应商直运
+【分型扩展-工程】进场日期、工期；服务完成量不在订单数量里重复记录；对账时可作为请款依据类型
+【分型扩展-自用】领用用途、资产类标识
+【路径扩展-委外】单据类型=产品委外订单时必填：是否虚单、交易路径、委外加工商、委外工单编号+行号、委外直送。需求分型通常=硬件。请款认采购入库，不认完工入库"><span class="ent-top"><b>采购订单</b><i class="pill sat-gov">待治理</i></span></button></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>交付</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell" data-col="6"><button type="button" class="ent sat-miss" data-node="P06 到货验收" data-obj="交付" data-name="供应商发货单" data-sat="待采集" data-state="系统数据" data-issue="硬件类的线上，工程类的部分数据线下，自用的全部线下" data-owner="王斌" data-admin="汪学文" data-source="线上（SCM）、线下并存" data-level="L2" data-pri="P1" data-attrs="【标识】送货单号
+【分类】需求分型（硬件 / 工程 / 自用）；交付形态（入中心仓 / 直发项目现场 / 自用领用点）
+【关联】采购订单号+行号；供应商编码；收货组织或入库仓库（入仓类）；项目或现场地点（工程直发）
+【度量】发货数量、总件数
+【地点】送货地址
+【时间】发货日期、预计到货时间
+【状态】已创建 → 在途 → 已到货 → 已关闭
+【分型说明】硬件以仓配 ASN 为主；工程可直发现场；自用当前多线下——按同一事件对象留核心键，不因系统未覆盖而删属性
+【边界】到货通知 ≠ 验收合格 ≠ 入库过账，三者分属发货单/验收单/采购入库单"><span class="ent-top"><b>供应商发货单</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>验收</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell" data-col="6"><button type="button" class="ent sat-gov" data-node="P06 到货验收" data-obj="验收" data-name="验收单" data-sat="待治理" data-state="系统" data-issue="延迟验收；
+验收时未上传关键附件，财务判断不了付款条件；" data-owner="郭晓菲" data-admin="杨强云" data-source="OA/POMP/SAP/WMS" data-level="敏感数据" data-pri="P1" data-attrs="【标识】验收单号
+【分类】需求分型（硬件 / 工程 / 自用）；验收对象（物资到货 / 项目阶段 / 竣工）；签收方式、物资类别
+【关联】采购订单号或合同编号；供应商编码；物资编码
+【参与方】验收人
+【度量】验收数量、含税单价、税率、含税金额、总金额、不含税总金额、验收扣款
+【时间】验收时间、到货时间（物资类）
+【状态】待验收 → 合格 → 不合格
+【分型扩展-硬件】请款通常以入库+检验批为准；本单仅在确需「到货验收」场景使用，不替代采购入库单
+【分型扩展-工程】阶段/竣工结论可挂本单；本单只保留阶段是否合格，不记录各期完成量
+【分型扩展-自用】物资签收与扣款"><span class="ent-top"><b>验收单</b><i class="pill sat-gov">待治理</i></span></button></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>库存</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell" data-col="6"><button type="button" class="ent sat-ok" data-node="P06 到货验收" data-obj="库存" data-name="采购入库单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS" data-level="L3" data-pri="" data-attrs="【标识】入库凭证号（采购收货）+ 行号
+【分类】库存地点类型（工厂周转仓 / 项目仓 / 自用仓，取自仓库主数据）；订单类型、移动类型、库存类型
+【关联】采购订单号+行号；送货单号；物料编码；供应商编码；工厂；库位；批次；项目/WBS（项目仓必填）
+【参与方】采购法人、利润中心、货主
+【度量】入库数量、计量单位、金额、货币
+【时间】入库日期（过账日期）
+【状态】已过账 / 已冲销
+【分型适用】仅标的形态=物料；服务/劳务不产生本凭证，完成量不走入库
+【是否进周转分母】由库存地点类型决定，不由需求分型决定：项目仓物资（含硬件）不进集团周转分母
+【分型扩展-硬件】来料须带回质检状态；周转仓才计入集团周转
+【分型扩展-工程】项目物资的库位取仓库主档的地点类型，不在本单把工程一律写成项目仓
+【分型扩展-自用】资产/费用仓或直耗
+【委外】外协回货若同时有完工入库，请款只认本凭证
+【边界】入库过账 ≠ 到货通知 ≠ 验收合格"><span class="ent-top"><b>采购入库单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell optional-col" data-col="7"><button type="button" class="ent sat-ok" data-node="P07 生产制造" data-obj="库存" data-name="生产领料" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP" data-level="L3" data-pri="" data-attrs="【标识】领料单号 + 行号
+【分类】移动类型、库存类型；领料场景（自制工单 / 委外发料）
+【关联】生产订单号；物料编码；领料库位；批次；委外供应商编码（委外时必填）
+【参与方】采购法人、利润中心
+【度量】领料数量、计量单位
+【时间】领料日期
+【状态】已创建 → 已过账
+【分型适用】硬件制造路径；工程/自用无生产领料（自用出库走领用预留）
+【路径扩展-委外】必须挂委外工单/产品委外订单，禁止无工单发料"><span class="ent-top"><b>生产领料</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P07 生产制造" data-obj="库存" data-name="完工入库单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP / WMS" data-level="L3" data-pri="" data-attrs="【标识】入库凭证号（完工收货）+ 行号
+【分类】收货类型（自制完工 / 外协入库）、移动类型
+【关联】生产订单号；物料编码；工厂；库位；批次；委外时:产品委外订单号、加工商
+【度量】入库数量、计量单位
+【时间】入库日期
+【状态】已过账 / 已冲销
+【分型适用】硬件自制或委外完工；服务无完工入库
+【路径扩展-委外】外协回货的库存事件可以是本单，但对供应商的请款依据只能是采购入库单。本单不得进入对账单的「入库凭证」路径，避免一笔回货请两次款"><span class="ent-top"><b>完工入库单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell optional-col" data-col="8"><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="库存" data-name="调拨单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS" data-level="L3" data-pri="P2" data-attrs="【标识】调拨单号 + 行号
+【分类】移动类型；是否跨法人；库存地点类型（周转仓 / 项目仓 / 自用仓）
+【关联】物料编码；发出工厂/库位；接收工厂/库位；批次；项目编码（涉及项目仓时必带）
+【度量】调拨数量、单位
+【时间】调拨日期、收货日期
+【状态】已创建 → 在途 → 已收货
+【分型扩展】项目仓与周转仓互调必须保留项目外键，避免项目物资混入集团周转；自用仓调拨挂成本中心
+【分型适用】物料库存移动；服务无调拨"><span class="ent-top"><b>调拨单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="库存" data-name="盘点单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS" data-level="L3" data-pri="" data-attrs="【标识】盘点单号 + 行号
+【分类】库存类型、零盘点标记；库存地点类型（周转仓 / 项目仓 / 自用仓）
+【关联】工厂；库位；物料编码；批次；项目编码（项目仓）
+【度量】账面数量、盘点数量、盘点调整数量、输入单位
+【时间】盘点日期、过账日期
+【状态】盘点中 → 已过账
+【分型说明】硬件周转仓与项目仓盘点口径分开，项目物资不进集团周转分母；自用仓按费用/资产仓规则"><span class="ent-top"><b>盘点单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="库存" data-name="报废单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS" data-level="L3" data-pri="" data-attrs="【标识】报废单号 + 行号
+【分类】报废原因、移动类型；库存地点类型
+【关联】物料编码；工厂；库位；批次；成本中心（自用）或项目编码（工程物资）；建议关联质量问题单号
+【度量】报废数量、报废金额
+【时间】报废日期、过账日期
+【状态】已创建 → 已过账
+【分型扩展-硬件】原因码与质量问题对齐
+【分型扩展-工程】项目物资报废保留项目外键
+【分型扩展-自用】费用/资产报废挂成本中心"><span class="ent-top"><b>报废单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>制造</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell optional-col" data-col="7"><button type="button" class="ent sat-ok" data-node="P07 生产制造" data-obj="制造" data-name="生产订单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="王斌" data-admin="汪学文" data-source="SAP" data-level="L3" data-pri="" data-attrs="【标识】生产订单号
+【分类】订单类型（自制、委外）；需求分型适用=硬件
+【关联】生产计划版本号；物料编码；BOM 版本；工厂；销售订单号；委外时:委外加工商（供应商编码）、产品委外订单号
+【度量】计划数量、完工数量、报废数量
+【时间】计划开工/完工日期、实际开工/完工日期
+【状态】已创建 → 已下达 → 已完工 → 已关闭；齐套是否通过
+【分型适用】硬件制造路径；工程/自用无生产订单
+【路径扩展-委外】与产品委外采购订单成对：本单管工单执行与齐套，PO 管对加工商的采购结算；组件出库走生产领料，成品回仓走完工入库"><span class="ent-top"><b>生产订单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell empty optional-col" data-col="8"></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>销售订单</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell optional-col" data-col="8"><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="销售订单" data-name="销售订单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="" data-admin="" data-source="SAP（供应链只读）" data-level="L3" data-pri="" data-attrs="【标识】销售订单号 + 行号
+【分类】履约模式（C端 / 渠道 / 项目）。这是履约分型，不是硬件/工程/自用
+【关联】客户编码；送达方；物料编码或 SKU
+【关联-项目】项目编码或 WBS（仅履约模式=项目时必填）
+【参与方】供应链只读，不写入；订单归属 LTC / C端订单中心
+【度量】订单数量、计量单位
+【时间】下单时间、承诺交期
+【状态】已创建 → 已承诺 → 部分发货 → 已完成
+【边界】本单是 P08 的触发与计时起点。采购侧的硬件/工程/自用需求不从本单派生类型"><span class="ent-top"><b>销售订单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>发货</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell optional-col" data-col="8"><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="发货" data-name="履约交货单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS；" data-level="L3" data-pri="" data-attrs="【标识】交货单号 + 行号（与领用预留单号不是同一套号，领用不进本单）
+【分类】履约模式（C端 / 渠道 / 项目）；移动类型、库存类型
+【关联】物料编码；库位；SN（C端单件管理时）
+【关联-销售履约】履约模式=C端或渠道：销售订单号+行号、客户、送达方必填；不挂项目也能成立
+【关联-项目发货】履约模式=项目：项目编码或 WBS 必填；有销售订单则挂销售订单，没有销售订单的项目发货不编造订单号
+【参与方】签收人、利润中心
+【度量】交货数量、单位
+【时间】凭证日期、计划发货日期、实际发货日期、签收时间
+【状态】已创建 → 已拣货 → 已发运 → 已签收；签收结果、异常原因
+【边界】一条交货行只属于一种履约模式，关联键按该模式填写"><span class="ent-top"><b>履约交货单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="发货" data-name="领用预留" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="SAP/WMS" data-level="L3" data-pri="" data-attrs="【标识】预留单号 + 行号
+【分类】移动类型、领用用途；库存地点类型（自用仓 / 项目仓）
+【关联】物料编码；库位；成本中心（自用）或项目编码/WBS（工程领用）；关联需求单号
+【参与方】领用人、送达方
+【度量】领用数量、已发料数量、单位
+【时间】凭证日期、计划发货日期、实际发货日期
+【状态】已创建 → 部分发料 → 已关闭
+【分型适用】自用主路径；工程可作项目现场领用；硬件制造发料不走本单（走生产领料）"><span class="ent-top"><b>领用预留</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P08 履约发货" data-obj="发货" data-name="物流运单" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="WMS" data-level="L3" data-pri="" data-attrs="【标识】运单号
+【分类】运输方式；履约模式从交货单继承（C端 / 渠道 / 项目），不另用硬件/工程/自用
+【关联】交货单号（必填）；承运商编码。不直接挂领用预留或采购订单
+【度量】件数、重量、体积、运费
+【地点】始发地、目的地
+【时间】揽收时间、在途节点时间、送达时间
+【状态】已揽收 → 在途 → 已送达；回单号、异常原因
+【边界】运单解释「怎么送」，不解释「发给谁、依据哪张订单」——那些在履约交货单上"><span class="ent-top"><b>物流运单</b><i class="pill sat-ok">已满足</i></span></button></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>质量</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell" data-col="6"><button type="button" class="ent sat-miss" data-node="质量闭环" data-obj="质量" data-name="检验批" data-sat="待采集" data-state="线下数据" data-issue="" data-owner="张小平" data-admin="各工程师" data-source="线下表格" data-level="L2" data-pri="P1" data-attrs="【标识】检验批号
+【分类】检验类型（来料、制程、工程现场）；检验方式（全检、抽检）
+【关联】物料编码；批次；供应商编码；入库凭证号（来料）或生产订单号（制程）；项目编码（工程现场）
+【参与方】检验员
+【度量】送检数量、抽样数量、不合格数量
+【结果】判定结果、缺陷描述
+【时间】检验日期
+【状态】待检 → 合格 → 不合格 → 让步接收
+【分型扩展-硬件】来料挂采购入库；制程挂生产订单；合格率由数量派生，不进核心属性
+【分型扩展-工程】现场/隐蔽工程检验，当前常无对象，需按本结构采集
+【分型扩展-自用】一般不建检验批"><span class="ent-top"><b>检验批</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell optional-col" data-col="7"><button type="button" class="ent sat-miss" data-node="质量闭环" data-obj="质量" data-name="质量问题清单" data-sat="待采集" data-state="线下数据" data-issue="学习机是线上的，其他是线下的。" data-owner="张小平；张孝天" data-admin="各工程师；袁志美" data-source="线下线上（SCM）并存" data-level="L3" data-pri="P0" data-attrs="【标识】问题单号
+【分类】需求分型可追溯（硬件 / 工程 / 自用）；问题类型（制程、市场、批量、工程现场）；部件分类、问题等级、工单来源
+【关联】检验批号、生产订单号或销售订单号；物料编码；供应商编码；SN；机型；工程:项目编码
+【参与方】业务线、责任人
+【度量】影响数量
+【描述】问题反馈、发生工序、售后维修方案
+【时间】发生时间、工单时间、激活时间（C端硬件）、关闭时间
+【状态】新建 → 处理中 → 已关闭
+【分型扩展-硬件】SN/机型/激活为 C 端谱系字段；学习机已线上、其他线下
+【分型扩展-工程】现场问题挂项目，不以机型/激活硬套
+【分型扩展-自用】可挂领用/资产，非主路径"><span class="ent-top"><b>质量问题清单</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-miss" data-node="质量闭环" data-obj="质量" data-name="质量改进清单" data-sat="待采集" data-state="线下数据" data-issue="" data-owner="张小平" data-admin="各工程师" data-source="线下表格" data-level="L2" data-pri="P1" data-attrs="【标识】改进单号
+【分类】改进类型（8D、QCC）；业务线；需求分型可追溯
+【关联】问题单号（必填）；供应商编码；物料编码；工程可挂项目编码
+【参与方】主导工程师、责任人
+【描述】问题描述、根因、遏制措施、永久措施、验证结果
+【时间】导入时间、关闭时间
+【状态】开立 → 遏制 → 原因分析 → 措施验证 → 关闭
+【分型适用】硬件 8D 为主路径；工程现场问题可用同一实体，不另建「工程整改单」
+【边界】改进单不是质量问题本身，离开问题单不能单独存在作为主事实"><span class="ent-top"><b>质量改进清单</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell optional-col" data-col="8"><button type="button" class="ent sat-miss" data-node="质量闭环" data-obj="质量" data-name="供应商索赔" data-sat="待采集" data-state="系统数据" data-issue="" data-owner="张孝天" data-admin="袁志美" data-source="线下表格" data-level="L3" data-pri="P0" data-attrs="【标识】索赔单号（现用名：蛛丝马迹单号）
+【分类】类别、事项分类、现象分类、措施分类、责任归属；需求分型可追溯
+【关联】供应商编码；问题单号或检验批号（建议必填）；合同编号或订单号；项目编码（工程）
+【参与方】主导处理人、项目经理
+【度量】主张金额、实际扣款金额、实际扣款来源
+【时间】事件发生时间、预计闭环时间、结案时间
+【状态】已提出 → 谈判中 → 已结案；罚款是否完成
+【分型扩展-硬件】通常由质量问题/检验批驱动
+【分型扩展-工程】可挂项目与合同履约扣款
+【分型扩展-自用】少见，走合同扣款即可
+【边界】索赔是质量闭环的经济后果，不是风险信号主档；与供应商主数据上的「蛛丝马迹」标签区分"><span class="ent-top"><b>供应商索赔</b><i class="pill sat-miss">待采集</i></span></button></div><div class="cell empty" data-col="9"></div><div class="lane"><strong>结算</strong></div><div class="cell empty src-col" data-col="1"></div><div class="cell empty src-col" data-col="2"></div><div class="cell empty" data-col="3"></div><div class="cell empty" data-col="4"></div><div class="cell empty" data-col="5"></div><div class="cell empty" data-col="6"></div><div class="cell empty optional-col" data-col="7"></div><div class="cell empty optional-col" data-col="8"></div><div class="cell" data-col="9"><button type="button" class="ent sat-miss" data-node="P09 对账付款" data-obj="结算" data-name="对账单" data-sat="待采集" data-state="系统与线下并存" data-issue="基于SAP的订单、基建施工、劳务施工可线上对账，其他线下对账" data-owner="杨强云" data-admin="胡婷婷" data-source="报账机器人" data-level="L3" data-pri="P0" data-attrs="【标识】对账单号
+【分类】需求分型（硬件 / 工程 / 自用）；请款依据类型（入库凭证 / 验收单 / 服务接收单）；对账类型（按期间、按订单）
+【关联】结算供应商编码；采购订单号或合同编号；发票号码
+行:请款依据单号（同一行只填一路：采购入库凭证号+行号 / 验收单号 / 服务接收单号+行号）
+【参与方】支付主体（结算组织）、对账人员
+【度量】对账金额（含税、未税）、税额、差异金额
+【时间】对账期间起止、确认时间
+【状态】待对账 → 已确认 → 有差异
+【请款路径-入库凭证】仅采购收货凭证。硬件物料、以及入项目仓的工程物资：订单+入库+发票；质检不合格不得请款。完工入库、生产领料不是请款依据
+【请款路径-验收单】自用物资签收，以及需要阶段/竣工合格结论的工程物资：订单或合同+验收合格+发票。本路径不代替服务完成量
+【请款路径-服务接收单】工程劳务/运维/基建服务：订单或合同+已审批完成量+发票。不得用采购入库充数
+【分型适用】硬件默认采购入库；工程服务默认服务接收；工程物资按是否入项目仓在入库与验收中择一，不得两路同时入账同一数量；自用默认验收单
+【当前缺口】SAP订单、基建施工、劳务施工可线上，其余线下；线下也必须落到三路之一"><span class="ent-top"><b>对账单</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-miss" data-node="P09 对账付款" data-obj="结算" data-name="供应商发票" data-sat="待采集" data-state="线下" data-issue="" data-owner="杨强云" data-admin="胡婷婷" data-source="报账机器人" data-level="L3" data-pri="P2" data-attrs="【标识】发票号码 + 发票代码 + 供应商编码；校验后的发票凭证号
+【分类】发票类型（增值税专用发票、普通发票）；请款依据类型（入库凭证 / 验收单 / 服务接收单）
+【关联】供应商编码；采购订单号+行号；合同编号
+请款依据（三路择一）：入库凭证号+行号 / 验收单号 / 服务接收单号
+【参与方】开票方、收票方（结算组织）
+【度量】发票金额、不含税金额、税额、税率、数量、单位
+【时间】开票日期、登记日期、校验日期
+【状态】已登记 → 已校验 → 已过账；可冻结；校验结果
+【校验规则】硬件入库路径：发票数量/金额不得超未开票入库量；验收路径：不得超验收合格量；服务接收路径：不得超已审批完成量。预付款发票挂合同付款计划，不强制三路依据"><span class="ent-top"><b>供应商发票</b><i class="pill sat-miss">待采集</i></span></button><button type="button" class="ent sat-ok" data-node="P09 对账付款" data-obj="结算" data-name="报销单" data-sat="已满足" data-state="线上" data-issue="" data-owner="郑方圆" data-admin="胡婷婷" data-source="报账机器人" data-level="L3" data-pri="" data-attrs="【标识】报销单号
+【分类】报销类型；请款依据类型（入库凭证 / 验收单 / 服务接收单）
+【关联】对账单号（有对账时必填）；发票号码；供应商编码；采购订单号或合同编号
+请款依据随对账单行带入（入库凭证 / 验收单 / 服务接收单），本单不另造第三套依据号
+【参与方】报销人、支付主体
+【度量】报销金额、单位
+【时间】报销日期
+【状态】草稿 → 审批中 → 已报销
+【边界】报销是财经过账载体，不替代请款依据本身；无对账单的小额自用报销仍须挂验收单或入库凭证之一"><span class="ent-top"><b>报销单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P09 对账付款" data-obj="结算" data-name="付款申请单" data-sat="已满足" data-state="线上" data-issue="" data-owner="郑方圆" data-admin="胡婷婷" data-source="报账机器人" data-level="敏感数据" data-pri="" data-attrs="【标识】付款申请号
+【分类】款项类型（预付款、进度款、尾款、质保金）；付款方式；请款依据类型（入库凭证 / 验收单 / 服务接收单 / 合同付款计划）
+【关联】发票凭证号；合同编号；采购订单号；收款供应商编码；付款计划行（款项名称）
+进度款/尾款必须挂与对账、发票相同的一路依据
+【参与方】申请人、付款组织（支付主体）
+【度量】申请金额、付款比例(%)、币种
+【条款】付款条件、到期日、是否预付、预付时点
+【时间】申请日期、期望付款日期
+【状态】草稿 → 审批中 → 已批准 → 已驳回
+【请款路径-入库凭证】采购入库已过账且条款满足；来料检验不合格则冻结。不认完工入库
+【请款路径-验收单】验收合格且关键附件齐备
+【请款路径-服务接收单】按已审批本期完成量申请进度款
+【请款路径-合同付款计划】仅预付款：不要求三路依据，但须合同允许预付并写明预付时点
+【质保金】回指该合同付款计划中的质保金行，依据类型与当初请款路径一致（硬件多为入库或验收，工程服务多为服务接收）
+【分型适用】硬件多入库凭证；工程服务多服务接收单；自用多验收单"><span class="ent-top"><b>付款申请单</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="P09 对账付款" data-obj="结算" data-name="付款单" data-sat="已满足" data-state="线上" data-issue="" data-owner="郑方圆" data-admin="胡婷婷" data-source="报账机器人" data-level="敏感数据" data-pri="" data-attrs="【标识】付款凭证号
+【分类】付款方式、结算方式
+【关联】付款申请号（必填）；收款供应商编码；银行账号；合同编号
+请款依据不在本单重复录入，从付款申请单继承（入库凭证 / 验收单 / 服务接收单 / 合同付款计划）
+【参与方】付款组织（支付主体）
+【度量】实际付款金额、币种、汇率
+【时间】付款日期
+【状态】已支付 / 已冲销；银行回单号
+【回写】支付完成事件应回写采购订单/合同付款计划与请款依据的「已付金额」；冲销时同步冲回
+【边界】本单是资金执行结果，不解释「凭什么付」——依据在申请单/对账单上的三路之一"><span class="ent-top"><b>付款单</b><i class="pill sat-ok">已满足</i></span></button></div>
+    </div>
+  </div>
+  </div>
+  <div id="tabMd" class="tab-panel" hidden>
+  <section class="md">
+    <h2>主数据</h2>
+    <p class="hint">卡片只列标识、分类、状态。点开查看全部属性和当前问题。颜色表示数据是否满足。</p>
+    <div class="md-grid"><section class="md-group"><h3>物料与产品结构</h3><div class="md-cards"><button type="button" class="ent sat-gov" data-node="主数据" data-obj="物料" data-name="物料主档" data-sat="待治理" data-state="系统数据" data-issue="产品序列没有和产品主数据对齐；
+SN码的维护规则不明确；
+物料主数据与利润中心的映射关系" data-owner="" data-admin="童宝芳" data-source="PLM" data-level="L3" data-pri="P1" data-attrs="【标识】物料编码（SAP 物料号）。旧物料编码、助记码是历史对照，不进识别键
+【分类】物料类型、物料形态、配置属性、变式物料；一至三级品类（以品类编码为准）
+【关联】品类编码；品牌编码；MPN；PLM 料号（对照）；创建组织
+【描述】名称、规格型号、描述、产品线、产品族、产品系列、产品型号
+【度量】基本单位、辅助单位、换算方向、重量单位、毛重、净重、体积单位、体积、尺寸单位、长度、宽度、高度、默认税率(%)
+【业务能力】可采购、可销售、可库存、可生产、可资产、可委外、可受托、可寄售、可VMI、可质检、启用版本管理、单件管理、物料危险性
+【控制】创建组织、控制策略（全局共享）
+【状态】使用状态（可用、禁用）、数据状态（暂存、已审核）、生命周期状态（试制 → 量产 → 退市）"><span class="ent-top"><b>物料主档</b><i class="pill sat-gov">待治理</i></span></button><button type="button" class="ent sat-miss" data-node="主数据" data-obj="产品结构" data-name="生产BOM" data-sat="待采集" data-state="线下" data-issue="变更后未及时通知工厂，导致扣料不准" data-owner="童宝芳" data-admin="童宝芳" data-source="线下" data-level="L3" data-pri="P2" data-attrs="【标识】父项物料号 + BOM 用途 + 版本
+【分类】BOM 用途
+【关联】父项物料号；子项物料号；工厂；工程变更单号
+【度量】子项数量、计量单位、损耗率；替代组、替代优先级（同一子项有替代时）
+【时间】有效起始日、有效截止日
+【状态】编制 → 生效 → 失效
+【边界】替代组是子项行上的替代关系，不另建一套 BOM 编号"><span class="ent-top"><b>生产BOM</b><i class="pill sat-miss">待采集</i></span></button></div></section><section class="md-group"><h3>品类</h3><div class="md-cards"><button type="button" class="ent sat-ok" data-node="主数据" data-obj="品类" data-name="品类" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="丁延亮" data-admin="吴琼" data-source="SCM" data-level="L3" data-pri="" data-attrs="【标识】品类编码
+【分类】级次、是否末级品类、是否重要品类
+【关联】上级分类编码；创建组织
+【描述】名称、全称（从一级到本级的名称路径）
+【参与方】品类负责人、供应商管理负责人
+【控制】控制策略
+【状态】使用状态（可用）、数据状态（暂存、已审核）"><span class="ent-top"><b>品类</b><i class="pill sat-ok">已满足</i></span></button><button type="button" class="ent sat-ok" data-node="主数据" data-obj="品类" data-name="品类布局" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="丁延亮" data-admin="吴琼" data-source="SCM" data-level="L3" data-pri="" data-attrs="【标识】品类编码 + 供应商编码 + 采购组织
+【分类】布局类型（布局内、布局外）；布局细分维度（从品类主档移入）
+【关联】品类编码；供应商编码；采购组织；布局绑定白名单
+【参与方】品类负责人（引用品类，不在本行另存一套姓名）
+【时间】布局完成时间、进入时间、退出时间
+【状态】布局内 / 布局外 / 退出；布局状态（如布局报告暂未签批）
+【边界】寻源邀约校验的是本实体，不是品类主档上的一个是否字段"><span class="ent-top"><b>品类布局</b><i class="pill sat-ok">已满足</i></span></button></div></section><section class="md-group"><h3>供应商</h3><div class="md-cards"><button type="button" class="ent sat-gov" data-node="主数据" data-obj="供应商" data-name="供应商主档" data-sat="待治理" data-state="系统数据" data-issue="供应商的国家、城市归属不标准；
+供应商的部分分类标签缺失；" data-owner="丁延亮；卢红利；杨强云；赵小勇" data-admin="许鹏程/谭莉华；许鹏程；供应商管理中心；郭超" data-source="SCM" data-level="L3；" data-pri="P0" data-attrs="【标识】供应商编码。统一社会信用代码、纳税人识别号、邓白氏编码用于查重，不与供应商编码合成一个键；主数据供应商编码若与 SCM 编码不同，作对照
+【分类】供应商等级（简易、合格、试用）、等级类型、所属分类、企业类型、所属行业、供应商标识、采购业务组
+【关联】创建组织；合作品牌（品牌编码）
+【参与方】采购唯一接口人（岗位，不是联系人明细）；法人代表
+【描述】供应商名称、简称、英文名称、注册地址、国家、行政区划（标准码，不用自由文本城市）；成立时间、注册资本、币种、是否上市
+【控制】控制策略
+【时间】创建时间、审核时间、修改时间
+【状态】供应商状态（潜在、合作）、数据状态"><span class="ent-top"><b>供应商主档</b><i class="pill sat-gov">待治理</i></span></button></div></section><section class="md-group"><h3>仓库</h3><div class="md-cards"><button type="button" class="ent sat-ok" data-node="主数据" data-obj="仓库" data-name="仓库" data-sat="已满足" data-state="系统数据" data-issue="" data-owner="郭晓菲" data-admin="马静" data-source="WMS" data-level="L3" data-pri="" data-attrs="【标识】工厂 + 库位（仓库编码）
+【分类】仓库分类；库存地点类型（工厂周转仓 / 项目仓 / 自用仓）——下游入库、调拨、盘点、是否进集团周转分母都认这个字段，不在每张业务单上另造一套地点类型
+【关联】工厂；创建组织；仓库负责人；项目编码（仅项目仓，可多项目则不写死在主档，改由入库行带项目）
+【描述】仓库名称、物理仓中文名
+【控制】是否启用仓位、参与存货核算、控制策略
+【状态】使用状态（可用）、数据状态（已审核）"><span class="ent-top"><b>仓库</b><i class="pill sat-ok">已满足</i></span></button></div></section><section class="md-group"><h3>品牌</h3><div class="md-cards"><button type="button" class="ent sat-miss" data-node="主数据" data-obj="品牌" data-name="品牌" data-sat="待采集" data-state="线下数据" data-issue="人工填写，未归口管理，未作唯一性、准确性校验" data-owner="孟庆祥" data-admin="霍云云" data-source="线下表格" data-level="L3" data-pri="P1" data-attrs="【标识】品牌编码（现用代号如 PP1，转正后仍只保留一个编码）
+【分类】是否末级
+【关联】品类编码
+【描述】品牌名称、品牌策略、备注
+【状态】报备中 / 可用 / 停用"><span class="ent-top"><b>品牌</b><i class="pill sat-miss">待采集</i></span></button></div></section></div>
+  </section>
+  </div>
+</div>
+<aside class="drawer" id="drawer">
+  <button class="x" type="button" id="drawerClose" aria-label="关闭">×</button>
+  <h3 id="dName"></h3>
+  <div class="sub" id="dSub"></div>
+  <p class="meta" id="dMeta"></p>
+  <div class="attrs" id="dAttrs"></div>
+</aside>
+<script>
+const drawer = document.getElementById('drawer');
+function renderAttrs(text) {
+  const box = document.getElementById('dAttrs');
+  box.innerHTML = '';
+  const groups = [];
+  (text || '').split('\n').forEach(line => {
+    const m = line.trim().match(/^【(.+?)】(.*)$/);
+    if (m) groups.push([m[1], m[2].trim()]);
+    else if (line.trim() && groups.length) groups[groups.length - 1][1] += '；' + line.trim();
+  });
+  groups.forEach(([k, v]) => {
+    const row = document.createElement('div');
+    row.className = 'ag';
+    const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = k;
+    const vv = document.createElement('span'); vv.textContent = v;
+    row.append(kk, vv);
+    box.appendChild(row);
+  });
+}
+function line(label, value) {
+  if (!value) return '';
+  return label + '：' + value;
+}
+function openEnt(btn) {
+  document.querySelectorAll('.ent.on').forEach(el => el.classList.remove('on'));
+  btn.classList.add('on');
+  const d = btn.dataset;
+  document.getElementById('dName').textContent = d.name;
+  document.getElementById('dSub').textContent = [d.node, d.obj, d.sat].filter(Boolean).join(' · ');
+  const meta = [line('当前状态', d.state), line('当前问题', d.issue), line('业务负责人', d.owner),
+    line('数据管理员', d.admin), line('来源系统', d.source), line('安全级别', d.level), line('优先级', d.pri)]
+    .filter(Boolean).join('\n');
+  document.getElementById('dMeta').textContent = meta;
+  renderAttrs(d.attrs);
+  drawer.classList.add('show');
+}
+document.querySelector('.page').addEventListener('click', e => {
+  const btn = e.target.closest('.ent');
+  if (btn) openEnt(btn);
+});
+function showTab(which) {
+  const flow = which === 'flow';
+  document.getElementById('tabFlow').hidden = !flow;
+  document.getElementById('tabMd').hidden = flow;
+  document.getElementById('phaseHead').hidden = !flow;
+  document.getElementById('tabBtnFlow').classList.toggle('on', flow);
+  document.getElementById('tabBtnMd').classList.toggle('on', !flow);
+  document.getElementById('tabBtnFlow').setAttribute('aria-selected', flow ? 'true' : 'false');
+  document.getElementById('tabBtnMd').setAttribute('aria-selected', flow ? 'false' : 'true');
+  drawer.classList.remove('show');
+  document.querySelectorAll('.ent.on').forEach(el => el.classList.remove('on'));
+}
+document.getElementById('tabBtnFlow').addEventListener('click', () => showTab('flow'));
+document.getElementById('tabBtnMd').addEventListener('click', () => showTab('md'));
+document.getElementById('drawerClose').addEventListener('click', () => {
+  drawer.classList.remove('show');
+  document.querySelectorAll('.ent.on').forEach(el => el.classList.remove('on'));
+});
+const MD_KEEP = ['标识', '分类', '状态'];
+function briefAttr(text) {
+  let s = (text || '').trim();
+  const dot = s.indexOf('。');
+  const dash = s.indexOf('——');
+  let cut = -1;
+  if (dot > 0) cut = dot;
+  if (dash > 0 && (cut < 0 || dash < cut)) cut = dash;
+  if (cut > 0) s = s.slice(0, cut);
+  return s;
+}
+document.querySelectorAll('#tabMd .ent').forEach(btn => {
+  const box = document.createElement('span');
+  box.className = 'core';
+  const groups = [];
+  (btn.dataset.attrs || '').split('\n').forEach(line => {
+    const m = line.trim().match(/^【(.+?)】(.*)$/);
+    if (m) groups.push([m[1], m[2].trim()]);
+    else if (line.trim() && groups.length) groups[groups.length - 1][1] += '；' + line.trim();
+  });
+  MD_KEEP.forEach(key => {
+    const found = groups.find(([k]) => k === key);
+    if (!found) return;
+    const row = document.createElement('span');
+    row.className = 'core-row';
+    const kk = document.createElement('em');
+    kk.textContent = key;
+    const vv = document.createElement('span');
+    vv.textContent = briefAttr(found[1]);
+    row.append(kk, vv);
+    box.appendChild(row);
+  });
+  btn.appendChild(box);
+});
+</script>
+</body>
+</html>
